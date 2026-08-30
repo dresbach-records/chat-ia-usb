@@ -1,0 +1,1 @@
+.\llamafile-0.10.5 --server --model
