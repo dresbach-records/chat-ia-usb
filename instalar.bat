@@ -1,287 +1,169 @@
-Sim. E agora dá para fazer o `BAT` baixar **automaticamente o `llamafile-0.10.5`** também.
-
-A documentação oficial confirma que, no Windows, o llamafile pode ser usado como um binário separado junto com um GGUF externo — exatamente o seu cenário. ([GitHub][1])
-
-Para o **0.10.5**, existe o binário oficial `llamafile-0.10.5` com aproximadamente **351 MB** no Hugging Face da Mozilla AI. ([Hugging Face][2])
-
-Eu faria assim:
-
-### `instalar.bat`
-
-```bat
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 
 title CHAT-IA-USB - Instalador
 
 cd /d "%~dp0"
 
-echo ============================================================
-echo                 CHAT-IA-USB
-echo              INSTALADOR AUTOMATICO
-echo ============================================================
+echo ==========================================
+echo        CHAT-IA-USB - INSTALADOR
+echo ==========================================
 echo.
-echo Pasta:
+echo Diretorio de instalacao:
 echo %CD%
 echo.
 
-REM ============================================================
-REM CONFIGURACAO
-REM ============================================================
+set "LLAMAFILE_FILE=llamafile-0.10.5.exe"
+set "MODEL_FILE=qwen3-4b-thinking-2507.Q4_K_M.gguf"
 
-set "LLAMAFILE=llamafile-0.10.5.exe"
-set "MODEL=qwen3-4b-thinking-2507.Q4_K_M.gguf"
-
-set "LLAMAFILE_URL=https://huggingface.co/mozilla-ai/llamafile_0.10/resolve/main/llamafile-0.10.5?download=true"
+set "LLAMAFILE_URL=https://github.com/mozilla-ai/llamafile/releases/download/0.10.5/llamafile-0.10.5.exe"
 
 set "MODEL_URL=https://huggingface.co/pramodlohra/Qween3_4B_thinking_finetune/resolve/main/qwen3-4b-thinking-2507.Q4_K_M.gguf?download=true"
 
-REM ============================================================
-REM VERIFICAR CURL
-REM ============================================================
+echo [1/7] Verificando Windows...
+ver
+echo OK.
+echo.
 
-where curl >nul 2>&1
+echo [2/7] Verificando CURL...
+where curl.exe >nul 2>&1
 
 if errorlevel 1 (
-    echo [ERRO] O comando CURL nao foi encontrado.
+    echo [ERRO] CURL nao encontrado.
+    echo.
+    echo O Windows precisa do CURL para realizar os downloads.
     echo.
     pause
     exit /b 1
 )
 
-REM ============================================================
-REM BAIXAR LLAMAFILE
-REM ============================================================
+echo CURL encontrado.
+echo.
 
-if exist "%LLAMAFILE%" (
-    echo [OK] llamafile ja existe.
-    echo.
+echo [3/7] Verificando espaco disponivel...
+for /f "tokens=3" %%A in ('dir /-C "%CD%" ^| findstr /C:"bytes free"') do set "FREE=%%A"
+
+echo Espaco livre:
+echo %FREE% bytes
+echo.
+
+echo [4/7] Baixando llamafile 0.10.5...
+echo.
+
+if exist "%LLAMAFILE_FILE%" (
+    echo llamafile ja existe.
 ) else (
-    echo ============================================================
-    echo BAIXANDO LLAMAFILE 0.10.5
-    echo ============================================================
-    echo.
-    echo Tamanho aproximado: 351 MB
-    echo.
-    echo Fonte:
-    echo Mozilla AI
-    echo.
-
-    curl -L --fail --progress-bar ^
-        -o "%LLAMAFILE%" ^
+    curl.exe -L --fail --retry 3 --retry-delay 2 ^
+        -o "%LLAMAFILE_FILE%" ^
         "%LLAMAFILE_URL%"
 
     if errorlevel 1 (
         echo.
         echo [ERRO] Falha ao baixar o llamafile.
         echo.
-        
-        if exist "%LLAMAFILE%" del /q "%LLAMAFILE%"
-        
         pause
         exit /b 1
     )
-
-    echo.
-    echo [OK] llamafile baixado.
-    echo.
 )
 
-REM ============================================================
-REM BAIXAR MODELO QWEN
-REM ============================================================
+echo.
+echo llamafile OK.
+echo.
 
-if exist "%MODEL%" (
-    echo [OK] Modelo Qwen ja existe.
-    echo.
+echo [5/7] Baixando modelo Qwen3 4B...
+echo.
+echo Arquivo:
+echo %MODEL_FILE%
+echo.
+echo Este download pode demorar dependendo da velocidade da Internet.
+echo.
+
+if exist "%MODEL_FILE%" (
+    echo Modelo ja existe.
 ) else (
-    echo ============================================================
-    echo BAIXANDO QWEN 3 4B
-    echo ============================================================
-    echo.
-    echo Arquivo:
-    echo %MODEL%
-    echo.
-    echo Tamanho aproximado: 2.5 GB
-    echo.
-    echo Fonte:
-    echo Hugging Face
-    echo.
-
-    curl -L --fail --progress-bar ^
-        -o "%MODEL%" ^
+    curl.exe -L --fail --retry 3 --retry-delay 3 ^
+        -o "%MODEL_FILE%" ^
         "%MODEL_URL%"
 
     if errorlevel 1 (
         echo.
         echo [ERRO] Falha ao baixar o modelo Qwen.
         echo.
-        
-        if exist "%MODEL%" del /q "%MODEL%"
-        
+        echo Verifique sua conexao com a Internet.
         pause
         exit /b 1
     )
-
-    echo.
-    echo [OK] Modelo Qwen baixado.
-    echo.
 )
 
-REM ============================================================
-REM VERIFICAR ARQUIVOS
-REM ============================================================
-
-echo ============================================================
-echo VERIFICANDO INSTALACAO
-echo ============================================================
+echo.
+echo Modelo OK.
 echo.
 
-if not exist "%LLAMAFILE%" (
+echo [6/7] Validando arquivos...
+echo.
+
+if not exist "%LLAMAFILE_FILE%" (
     echo [ERRO] llamafile nao encontrado.
     pause
     exit /b 1
 )
 
-if not exist "%MODEL%" (
-    echo [ERRO] Modelo Qwen nao encontrado.
+if not exist "%MODEL_FILE%" (
+    echo [ERRO] Modelo nao encontrado.
     pause
     exit /b 1
 )
 
-echo [OK] llamafile encontrado.
-echo [OK] Qwen encontrado.
+for %%A in ("%LLAMAFILE_FILE%") do set "LLAMA_SIZE=%%~zA"
+for %%A in ("%MODEL_FILE%") do set "MODEL_SIZE=%%~zA"
+
+if "!LLAMA_SIZE!"=="0" (
+    echo [ERRO] O llamafile possui tamanho zero.
+    pause
+    exit /b 1
+)
+
+if "!MODEL_SIZE!"=="0" (
+    echo [ERRO] O modelo possui tamanho zero.
+    pause
+    exit /b 1
+)
+
+echo llamafile:
+echo !LLAMA_SIZE! bytes
 echo.
 
-REM ============================================================
-REM MOSTRAR TAMANHOS
-REM ============================================================
-
-echo ============================================================
-echo ARQUIVOS INSTALADOS
-echo ============================================================
+echo modelo:
+echo !MODEL_SIZE! bytes
 echo.
 
-dir "%LLAMAFILE%" "%MODEL%"
-
+echo Validacao concluida.
 echo.
-echo ============================================================
-echo INSTALACAO CONCLUIDA
-echo ============================================================
+
+echo [7/7] Instalacao concluida!
+echo.
+echo ==========================================
+echo          CHAT-IA-USB PRONTO
+echo ==========================================
+echo.
+echo Arquivos instalados:
+echo.
+echo [OK] %LLAMAFILE_FILE%
+echo [OK] %MODEL_FILE%
 echo.
 echo Para iniciar a IA execute:
 echo.
-echo iniciar.bat
+echo     iniciar.bat
 echo.
-
+echo Servidor local:
+echo.
+echo     http://127.0.0.1:8080
+echo.
+echo A configuracao padrao utiliza somente
+echo o computador local.
+echo.
+echo Nenhuma regra de firewall foi criada.
+echo.
 pause
-```
 
-### `iniciar.bat`
-
-```bat
-@echo off
-setlocal
-
-title CHAT-IA-USB - Qwen 3 4B
-
-cd /d "%~dp0"
-
-echo ============================================================
-echo              CHAT-IA-USB - QWEN 3 4B
-echo ============================================================
-echo.
-echo Pasta:
-echo %CD%
-echo.
-
-if not exist "llamafile-0.10.5.exe" (
-    echo [ERRO] llamafile nao encontrado.
-    echo.
-    echo Execute primeiro:
-    echo instalar.bat
-    echo.
-    pause
-    exit /b 1
-)
-
-if not exist "qwen3-4b-thinking-2507.Q4_K_M.gguf" (
-    echo [ERRO] Modelo Qwen nao encontrado.
-    echo.
-    echo Execute primeiro:
-    echo instalar.bat
-    echo.
-    pause
-    exit /b 1
-)
-
-echo Modelo:
-echo qwen3-4b-thinking-2507.Q4_K_M.gguf
-echo.
-echo Servidor:
-echo http://127.0.0.1:8080
-echo.
-echo API:
-echo http://127.0.0.1:8080/v1
-echo.
-echo ============================================================
-echo INICIANDO IA...
-echo ============================================================
-echo.
-
-"llamafile-0.10.5.exe" ^
-    --server ^
-    --model "qwen3-4b-thinking-2507.Q4_K_M.gguf" ^
-    --host 127.0.0.1 ^
-    --port 8080
-
-echo.
-echo ============================================================
-echo SERVIDOR ENCERRADO
-echo ============================================================
-echo.
-
-pause
-```
-
-### Resultado
-
-O usuário baixa seu projeto e terá:
-
-```text
-CHAT-IA-USB/
-│
-├── instalar.bat
-├── iniciar.bat
-├── README.md
-├── .gitignore
-├── .gitattributes
-│
-├── llamafile-0.10.5.exe       ← baixado pelo instalar.bat
-└── qwen3-4b-thinking-2507...  ← baixado pelo instalar.bat
-```
-
-O GitHub fica leve porque os dois arquivos grandes **não são versionados**.
-
-Na primeira execução:
-
-```text
-instalar.bat
-     ↓
-Baixa llamafile 0.10.5 (~351 MB)
-     ↓
-Baixa Qwen GGUF (~2,5 GB)
-     ↓
-Instalação concluída
-     ↓
-iniciar.bat
-     ↓
-Qwen → 127.0.0.1:8080
-```
-
-Atenção: o arquivo do llamafile que a Mozilla publica nessa versão é um binário de aproximadamente 351 MB, portanto **não tente colocá-lo dentro do GitHub como arquivo normal**. ([Hugging Face][2])
-
-E o modelo continua vindo diretamente do model card que você escolheu, em vez de ser redistribuído pelo seu repositório. Isso também deixa a atribuição correta. ([GitHub][1])
-
-[1]: https://github.com/mozilla-ai/llamafile/blob/main/docs/quickstart.md?utm_source=chatgpt.com "llamafile/docs/quickstart.md at main · mozilla-ai/llamafile · GitHub"
-[2]: https://huggingface.co/mozilla-ai/llamafile_0.10/blob/main/llamafile-0.10.5?utm_source=chatgpt.com "llamafile-0.10.5 · mozilla-ai/llamafile_0.10 at main"
+exit /b 0
